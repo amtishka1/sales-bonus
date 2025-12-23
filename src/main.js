@@ -6,9 +6,9 @@
  */
 function calculateSimpleRevenue(purchase, _product) {
     // @TODO: Расчет выручки от операции
-    const { sale_price, quantity } = purchase;
-    const discount = 1 - (purchase.discount / 100)
-    return sale_price * quantity * discount
+    const {discount, sale_price, quantity } = purchase;
+    const discountTotal = 1 - (discount / 100)
+    return sale_price * quantity * discountTotal
 }
 
 /**
@@ -45,6 +45,9 @@ function analyzeSalesData(data, options) {
     if (!data
         || !Array.isArray(data.sellers)
         || data.sellers.length === 0
+        || !Array.isArray(data.purchase_records)
+        || data.purchase_records.length === 0
+        || data.products.length === 0
     ) {
         throw new Error('Некорректные входные данные');
     }
@@ -72,7 +75,7 @@ function analyzeSalesData(data, options) {
     data.purchase_records.forEach(record => { // Чек 
         const seller = sellerIndex[record.seller_id]; // Продавец
         seller.sales_count++// Увеличить количество продаж 
-        seller.revenue += record.total_amount // Увеличить общую сумму всех продаж
+        seller.revenue += record.total_amount - record.total_discount // Увеличить общую сумму всех продаж
 
         // Расчёт прибыли для каждого товара
         record.items.forEach(item => {
@@ -86,7 +89,6 @@ function analyzeSalesData(data, options) {
 
             // Посчитать прибыль: выручка минус себестоимость
             const profit = revenue - seb
-
             // Увеличить общую накопленную прибыль (profit) у продавца
             seller.profit += profit
 
@@ -106,8 +108,9 @@ function analyzeSalesData(data, options) {
     sellerStats.forEach((seller, index) => {
         seller.bonus = calculateBonusByProfit(index, sellerStats.length, seller)
         seller.top_products = Object.entries(seller.products_sold)
-            .sort((a, b) => a.quantity - b.quantity)
+            .sort((a, b) => b[1] - a[1])
             .filter((_, i) => i < 10)
+            .map(x => ({ quantity: x[1], sku: x[0] }))
     });
 
     // @TODO: Подготовка итоговой коллекции с нужными полями
